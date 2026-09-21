@@ -1,0 +1,232 @@
+
+
+#####################################################
+#####################################################
+##                                                 ##
+##                   MODULE 4U001                  ##
+##                                                 ##
+##                TP1 - Tests simples              ##
+##                                                 ##
+#####################################################
+#####################################################
+
+
+# On prendra alpha = 5%.
+# Vous enoncerez ce que sont mesure et facteur(s) s'il y a lieu,
+# les conditions d'application, 
+# et poserez les hypothèses testées.
+
+
+###########################################################
+##  1ere partie : le test de Student pour 1 echantillon  ##
+###########################################################
+
+
+# Cela revient a calculer l'intervalle de confiance de la moyenne µ dont est issu l'echantillon.
+
+# Importons le jeu de donnees Datafish, qui contient les donnees de taille de poissons
+# soumis a deux regimes alimentaires (1 et 2) differents.
+Datafish <-read.csv("jeuxdedonnees/Datafish.csv", sep=";", dec=",")
+
+# On veut tester si la moyenne theorique µ_1 dont est issu le premier groupe est de 53.
+t.test(Datafish$Mesure[Datafish$Groupe=="adu1"],mu=53)
+
+# Que concluez-vous ?
+
+# On obtient la p-value du test de comparaison dont l'hypothèse H0 est µ=53, mais aussi l'intervalle de confiance a 95%
+# Pour avoir l'effectif : fonction length
+n=length(Datafish$Mesure[Datafish$Groupe=="adu1"]) ; n
+# On peut aussi utiliser la fonction tapply() pour avoir l'effectif de tous les échantillons
+tapply(Datafish$Mesure, Datafish$Groupe, length)
+
+# Même si l'effectif est de 31, on peut verifier si l'échantillon est issu d'une distribution normale
+# avec un test de Shapiro-Wilk (il en existe d'autres)
+shapiro.test(Datafish$Mesure[Datafish$Groupe=="adu1"])
+# On peut utiliser la fonction tapply pour le vérifier dans tous les échantilons
+tapply(Datafish$Mesure, Datafish$Groupe, shapiro.test)
+# non-rejet de H0, les donnees sont issues d'une distribution normale
+
+
+##########
+########## Exercices
+##########
+
+### Exercice 1
+### Verifiez si la moyenne theorique dont est issu le groupe 2 est egale a 46.
+
+### Exercice 2
+### On a mesure la durete d'une serie de mineraux identiques preleves dans une meme mine.
+### Les donnees sont dans le fichier Mineraux.
+### Sont-ils aussi durs que le corindon (durete 8) ?
+### Sans commande supplementaire, donner la moyenne et l'intervalle de confiance a 95%.
+
+
+#############################################
+##  2eme partie : autres tests de Student  ##
+#############################################
+
+##########
+########## Test de Student pour 2 échantillons indépendants
+##########
+
+# Question : existe-t-il une difference de taille des poissons entre les deux groupes dasn Datafish ?
+# On peut representer graphiquement les donnees avec un boxplot
+boxplot(Datafish$Mesure ~ Datafish$Groupe,
+        xlab = "Régime alimentaire",
+        ylab = "Taille des poissons (cm)")
+
+
+###################################################
+# FACULTATIF : le meme graphique avec ggplot2
+library(ggplot2)
+ggplot(Datafish, aes(x = Groupe, y = Mesure)) +
+  geom_boxplot() +
+  labs(
+    x = "Régime alimentaire",
+    y = "Taille des poissons (cm)"
+  )
+###################################################
+
+# Choix du test : test t pour deux echantillons independants
+# Les effectifs sont legerement > 30 ; on verifie les conditions d'application
+# Nous avons deja verifie precedemment que les echantillons sont issus de distributions normales
+tapply(Datafish$Mesure, Datafish$Groupe, shapiro.test)
+
+# Test d'egalite des variances
+bartlett.test(Datafish$Mesure ~ Datafish$Groupe)
+# Non rejet de H0, pas de difference significative entre les variances
+
+# Les conditions d'application du test sont vérifiées. 
+# Test de comparaison des deux groupes indépendants sous R :
+t.test(Datafish$Mesure~Datafish$Groupe,var.equal=T) # test de Student qui part du principe que les variances sont egales
+
+# Lorsqu'au moins un des echantillons est de petite taille,
+# et si les variances sont differentes,
+# ajouter l'argument var.equal = F : on conduit alors un test t de Welch.
+
+# Lorsqu'au moins un des echantillons est de petite taille, 
+# et si les donnees ne sont ni gaussiennes, ni transformables,
+# alors on peut conduire un test par re-echantillonnage -disponible dans les packages lmperm, resample, boot ...
+
+# On peut aussi faire un test non parametrique, le test de Mann-Whitney, c'est plus frequent (mais moins puissant).
+wilcox.test(Datafish$Mesure~Datafish$Groupe)
+# Le warning indique juste que la p-value est calculee sans ajustement avec les valeurs ex-aequo ;
+# ce n'est pas un message d'erreur !
+
+
+##########
+########## Test de Student pour 2 echantillons apparies
+##########
+
+# On recupere le fichier Sommeil.csv, qui contient les mesures de la duree du sommeil d'etudiants avant et après un examen
+Sommeil=read.csv("Sommeil.csv", sep=";", dec=",")
+#On cherche a savoir si les etudiants dorment moins avant leur examen par rapport à après l'examen
+
+# Choix du test : t.test pour 2 ech apparies
+dim(Sommeil) #les echantillons sont d'effectif < 30
+# On verifie la normalite de la difference (effectif n < 30) et non pas des mesures
+delta=Sommeil$Sommeil.Avant - Sommeil$Sommeil.Apres
+shapiro.test(delta)
+
+# Puis on fait le test t
+t.test(Sommeil$Sommeil.Avant,Sommeil$Sommeil.Apres, paired=T, alternative="less")
+# On ne verifie pas l'egalite des variances car c'est un test a 1 echantillon "deguise".
+t.test(delta, mu=0, alternative = "less")
+
+# La encore, en cas de petits echantillons non gaussiens, on peut aussi faire un test non parametrique.
+# C'est le test de Wilcoxon, frequemment employe dans ce cas mais moins puissant qu'un test par re-echantillonnage.
+wilcox.test(Sommeil$Sommeil.Avant,Sommeil$Sommeil.Apres,paired=T, alternative = "less")
+# Concernant le warning : voir plus haut !
+
+
+##########
+########## Exercice
+##########
+
+### Exercice 3
+### La ductilite (faculte de se deformer) a ete mesuree
+# en determinant la pression necessaire pour briser/deformer plusieurs echantillons d'une roche, avant et apres chauffage.
+### Le chauffage modifie t-il la ductilite ? Les donnees sont dans le fichier Ductilite.
+
+
+
+###################################
+##  3eme partie : tests du Chi2  ##
+###################################
+
+##########
+########## Chi2 de conformite (comparaison a des donnees theoriques)
+##########
+
+# Considerons le pelage de cobayes (gris ou blanc, lisse ou rude) ; on obtient les effectifs suivants apres un croisement,
+# correspondant aux 4 categories "gris et lisse", "blanc et lisse", "gris et rude" et "blanc et rude"
+cobaye = c(50,20,22,5)
+
+# On veut savoir si cela s'écarte significativement ou non des proportions théoriques prévues par la génétique (lois de Mendel)
+# qui sont les suivantes : 9/16 de "gris et lisse", 3/16 de "blanc et lisse", 3/16 de "gris et rude" et 1/16 de "blanc et rude"
+prop = c(9/16,3/16,3/16,1/16)
+
+# Test du chi-deux de conformite sous R :
+chisq.test(x=cobaye,p=prop)
+
+# Pour vérifier la règle de Cochran
+chisq.test(x=cobaye,p=prop)$expected
+
+##########
+########## Chi2 de comparaison (sur table de contingence, d'independance/d'homogénéité)
+##########
+
+# La categorie sociale et le sentiment d'appartenir a une classe sociale sont-ils independants ?
+# On rentre les donnees dans une table, a l'aide d'une nouvelle fonction : matrix()
+categorie=matrix(c(125, 190,588, 842, 1105, 888, 194, 300, 433, 694, 1227, 1024, 9, 6, 9, 10, 38, 45), 
+                 6, 3)# ces arguments renseignent sur le nombre de lignes et de colonnes
+# Mettons des titres aux lignes, puis aux colonnes
+rownames(categorie)=c("Pas du tout","Tres peu","Un peu","Partiellement","En grande partie","Completement")
+colnames(categorie)=c("Basse","Moyenne","Superieure")
+categorie
+
+# Conduite du test du Chi2 d'independance dans R, directement sur categorie :
+chisq.test(categorie,correct=F)
+
+# correct=F empeche R d'effectuer par defaut la correction de continuité de Yates,
+# injustifiée quand le critère de Cochran est valide, et inutile autrement.
+
+# Il y a un message d'alerte, qui indique qu'au moins un des effectifs theoriques est < 5.
+# Voyons les effectifs theoriques :
+chisq.test(categorie,correct=F)$expected
+# On a 1 classe sur 18 qui a un effectif < 5, soit plus de 80% des classes a un effectif > 5 ;
+# la règle de Cochran est respectée.
+
+# Quand le critère de Cochran n'est pas respecte, on peut a la place utiliser le test exact de Fisher.
+# Dans les donnees suivantes, il s'agit de performance a un test de memoire (+ ou -)
+# par des abeilles traitees avec differents produits.
+# On souhaite savoir si la performance est independante du traitement ou non par des produits.
+memoire=matrix(c(0,10,3,7,8,1), 2, 3) # 2 lignes, 3 colonnes
+rownames(memoire)=c("-","+")
+colnames(memoire)=c("Controles","Produit 1","Produit 2")
+memoire
+#vérifions les effectifs theoriques
+chisq.test(memoire,correct=F)$expected
+# 50% des classes ont des effectifs < 5 ; condition d'application (regle de Cochran) non respectee
+# On conduit alors le test exact de Fisher : 
+fisher.test(memoire)
+
+
+##########
+########## Exercices
+##########
+
+### Exercice 4
+### Lors d'une etude sur la pollution bacterienne, la presence ou l'absence de salmonelles a ete recensee a partir d'echantillons d'eau
+### preleves dans l'estuaire de 3 bassins europeens. Les analyses fournissent les resultats suivants:
+###                         Rhin	Loire 	Seine
+### Presence de salmonelles	8	    10	    16
+### Absence de salmonelles	2	    11	    23
+### La presence / absence de salmonelles est-elle homogene dans les 3 estuaires ?
+
+### Exercice 5
+### Le couvert vegetal du Parc naturel de Yellowstone est compose a 25,8 % de peuplements feuillus, 38 % de peuplements mixtes,
+### 25,8 % de resineux et 10,4 % de marecages. Au sein du parc, l'elan d'Amerique a ete localise par telemetrie a 511 reprises au cours d'une annee.
+### Sur les 511 localisations, 118 se situaient dans les feuillus, 201 dans les peuplements mixtes, 110 dans les resineux et 82 dans les marecages. 
+### L'élan d'Amerique frequente-il indifferemment les differents milieux du parc ?
+
