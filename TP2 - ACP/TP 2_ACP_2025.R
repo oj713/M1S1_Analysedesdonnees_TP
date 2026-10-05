@@ -4,8 +4,6 @@
 #                                            #
 ##############################################
 
-
-
 #### Chargement des packages ade4 (pour faire l'analyse) et factoextra (pour visualiser les resultats)
 library(ade4)
 library(factoextra)
@@ -14,7 +12,6 @@ library(factoextra)
 data(meau)
 TAB1=meau$env
 TAB1 # obtenir le tableau de donnees
-summary(TAB1)
 # Temperature, Courant, pH, Conductivite, Oxygene, Demande biologique en oxygene sur 5 jours (DBO5)
 # Matieres oxydees, Ammonium, Nitrate, Phosphate
 # Les sites sont six stations (S1 a S6)
@@ -31,63 +28,77 @@ library(GGally)
 ggpairs(TAB1) # correlations 2 a 2
 ggpairs(TAB1, diag = list(continuous = "blankDiag")) # sans la diagonale
 
+library(lattice)
 cov(TAB1) # la matrice des covariances
 cor(TAB1) # la matrice des correlations
-
+# Correlation = covariance / produit des écarts-types
+lattice::levelplot(cov(TAB1), main = "covariances: TAB1")
+lattice::levelplot(cor(TAB1), main = "correlation: TAB1")
 
 # Les donnees ne sont pas toutes de meme unite
 # On va alors les normaliser, en centrant/reduisant avec la fonction scale
-
 TAB1norm=scale(TAB1)
 
 #### Visualisation graphique des donnees TAB1 et TAB1norm
 par(mfrow=c(1,2)) # partitionne la fenetre graphique en 1 ligne, 2 colonnes
+# ici on peut voir que c les variables avec une grande gamme écrasent les autres en terme de vue et de l'interprétation
 boxplot(TAB1, las=2, main="TAB1") # l'argument las positionne l'etiquette perpendiculairement a l'axe
+# par contre avec de la normalisation on peut clairement comparer les variables
 boxplot(TAB1norm, las=2, main="TAB1norm")
 
 # Matrice des covariances et des correlations sur les donnees centrees-reduites : 
 cov(TAB1norm)
 cor(TAB1norm)
+# Covariance et correlation sont les mêmes quand les écart-types sont 1
+lattice::levelplot(cov(TAB1norm), main = "covariances: TAB1norm")
+lattice::levelplot(cor(TAB1norm), main = "correlations: TAB1norm")
 # A comparer avec cor(TAB1) :
 cor(TAB1)
 
 
 #### Determiner "a la main" les composantes principales et le nombre de composantes a garder.
+# Vecteur propres = EIGEN VECTOR
+# as many values as variables
 VP = eigen(cor(TAB1)) # Valeurs et vecteurs propres de la matrice de correlation de TAB1
 VP
 par(mfrow=c(1,1))
-barplot(VP$values) # Graphique des eboulis, ou screeplot = graphique des valeurs propres
+# Graphique des eboulis, ou screeplot = graphique des valeurs propres
+barplot(VP$values) 
 # Droite a 1 (= moyenne des valeurs propres) sur le graphique
-abline(h=mean(VP$values)) # Critere de Kaiser
+abline(h=mean(VP$values)) 
+# Critere de Kaiser, on garde les composantes principales dont la valeur dépasse la moyenne
+# critere alternative de coude (garde valeurs avant la rupture de pente), n'utilise pas ici
 
+# calcul la part de variance expliquée par la combinaison des composantes
 CP = VP$values / sum(VP$values)
 CP # Proportions
+# Variance explained by each variable
 CP*100 # En % de variance expliquee
 cumsum(CP*100) # somme cumulee
+# we see that three variables explain 80% of the variance, very good
 
 
 #### La fonction dudi.pca (du package ade4, qui a deja ete charge pour travailler sur le jeu de donnees meau)
 par(mfrow=c(1,1))
-ACP = dudi.pca(TAB1) #la fonction dudi.pca se charge de prendre la matrice de correlations
-# ATTENTION ! La fonction affiche le graphique des eboulis et attend que vous donniez le nombre de composantes a extraire.
-# Ici, choisissez 3 ; vous pouvez aussi la relancer avec plus ou moins de composantes.
-3 #on indique le nombre de composantes a garder
-
-# On peut aussi ecrire directement dans la fonction le nombre de composantes a garder :
-# ACP = dudi.pca(df = TAB1, scannf = FALSE, nf = 3)
-
+# ACP = dudi.pca(TAB1)
+ACP = dudi.pca(df = TAB1, scannf = FALSE, nf = 3) 
+#la fonction dudi.pca se charge de prendre la matrice de correlations
+# Note that nf is the number of composantes à garder, 3 for us thanks to the CP
 ACP
 
 # Dans l'objet ACP sont stockes differents elements :
-ACP$eig # les valeurs propres
+ACP$eig # les valeurs propres // eigen vecteurs
 # ACP$li les nouvelles coordonnees des individus
-# ACP$co les nouvelles coordonnees des variables (loading matrix)
+ACP$co #les nouvelles coordonnees des variables (loading matrix)
 # D'autres parametres sont presents, ils ne sont que peu ou pas utiles
 
 # la fonction summary sur l'objet ACP permet d'obtenir les informations sur les valeurs propres
 summary(ACP)
+# total inertia = initial variables
+# eigenvalues
 
 #Le graphique des valeurs propres (des eboulis) peut etre obtenu avec la fonction fviz_eig
+# Critere de coude !! rupture de pente
 fviz_eig(ACP)
 
 
@@ -102,6 +113,7 @@ var = get_pca_var(ACP)
 var
 var$coord # coordonnees des variables sur chaque axe
 
+# diapo 37-38
 
 #### Association entre individus
 # on represente les individus dans les composantes avec la fonction fviz_pca_ind :
@@ -119,11 +131,12 @@ Saisons
 ## Superposition sur le graphique des individus avec l'argument col.ind =...
 fviz_pca_ind(ACP,
              col.ind = Saisons,
-             axes=c(1,2),
+             axes=c(1,3),
              repel=TRUE,
              palette=c(1:4),
              addEllipses = TRUE,
-             ellipse.type = "convex",
+             #ellipse.type = "convex",
+             ellipse.type = "confidence", # surround 95% of the variability
              legend.title = "Saisons")
 
 
@@ -141,6 +154,7 @@ head(ind$coord) # coordonnees des individus
 
 
 ### Rotation Varimax
+# Force a correlation with a single variable to align w a dimension, see changes to other vars
 ACP.rot <- ACP
 ACP.rot[["co"]] <- varimax(as.matrix(ACP.rot$co))$loadings
 fviz_pca_var(ACP, axes=c(2,3), repel=TRUE) # sans rotation
