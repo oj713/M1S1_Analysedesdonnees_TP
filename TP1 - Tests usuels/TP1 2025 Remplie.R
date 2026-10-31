@@ -72,7 +72,9 @@ t.test(Datafish$Mesure[Datafish$Groupe=="adu2"], mu=46)
 ### Sans commande supplementaire, donner la moyenne et l'intervalle de confiance a 95%.
 mineraux <- read.csv("jeuxdedonnees/Mineraux.csv", sep=";", dec=",")
 nrow(mineraux) # 37, alors t.test
+
 boxplot(mineraux, ylab = "Durete", main = "Distribution de durete d'un minéral")
+hist(mineraux$Durete)
 
 t.test(mineraux$Durete, mu=8)
 
@@ -94,7 +96,7 @@ t.test(mineraux$Durete, mu=8)
 
 # Question : existe-t-il une difference de taille des poissons entre les deux groupes dasn Datafish ?
 # On peut representer graphiquement les donnees avec un boxplot
-boxplot(Datafish$Mesure ~ Datafish$Groupe,
+boxplot(Datafish$Mesure ~ Datafish$Groupe, col=c("purple","pink"),
         xlab = "Régime alimentaire",
         ylab = "Taille des poissons (cm)")
 
@@ -102,12 +104,13 @@ boxplot(Datafish$Mesure ~ Datafish$Groupe,
 ###################################################
 # FACULTATIF : le meme graphique avec ggplot2
 library(ggplot2)
-ggplot(Datafish, aes(x = Groupe, y = Mesure)) +
+ggplot(Datafish, aes(x = Groupe, y = Mesure, fill = Groupe)) +
   geom_boxplot() +
   labs(
     x = "Régime alimentaire",
     y = "Taille des poissons (cm)"
-  )
+  ) +
+  scale_fill_manual(values = c("purple","pink"))
 ###################################################
 
 ##### FACULTATIF VIZ DE LA DISTRIBUTION/NORMALE
@@ -200,6 +203,7 @@ wilcox.test(Sommeil$Sommeil.Avant,Sommeil$Sommeil.Apres,paired=T, alternative = 
 ### Le chauffage modifie t-il la ductilite ? Les donnees sont dans le fichier Ductilite.
 
 Ductilite = read.csv("jeuxdedonnees/Ductilite.csv", sep=";", dec=",")
+str(Ductilite)
 
 # Examiner le jeux de donnees
 head(Ductilite)
@@ -239,9 +243,9 @@ chisq.test(x=cobaye,p=prop)
 #' p-value = .67 > .05, alors on ne réjete pas l'hypothèse nulle et peut conclure que les pelage des cobayes suivent les proportions
 
 # Pour vérifier la règle de Cochran
+# on va extraire les effectifs theoriques (ceux attendus sous H0) dans le test du chi-deux
 chisq.test(x=cobaye,p=prop)$expected
 # chisq.test(x = cobaye, p = prop) => names()
-
 
 ##########
 ########## Chi2 de comparaison (sur table de contingence, d'independance/d'homogénéité)
@@ -255,6 +259,11 @@ categorie=matrix(c(125, 190,588, 842, 1105, 888, 194, 300, 433, 694, 1227, 1024,
 rownames(categorie)=c("Pas du tout","Tres peu","Un peu","Partiellement","En grande partie","Completement")
 colnames(categorie)=c("Basse","Moyenne","Superieure")
 categorie
+
+barplot(categorie, beside=TRUE, col=rainbow(6))
+barplot(categorie, col=rainbow(6), legend.text=FALSE, beside=TRUE, ylab="Effectifs")#barplot des effectifs observes
+legend(15,1000,legend=rownames(categorie),cex=0.8,col=rainbow(6), pch=15)
+
 
 # Conduite du test du Chi2 d'independance dans R, directement sur categorie :
 chisq.test(categorie,correct=F)
@@ -295,12 +304,18 @@ fisher.test(memoire)
 ### Absence de salmonelles	2	    11	    23
 ### La presence / absence de salmonelles est-elle homogene dans les 3 estuaires ?
 
+# étape 1: Création de données
 salmonelles = matrix(c(8, 2, 10, 11, 16, 23), 2, 3)
 rownames(salmonelles)=c("Presence de salmonelles","Absence de salmonelles")
 colnames(salmonelles)=c("Rhin","Loire","Seine")
 salmonelles
 
-## Vérifier effectifs théoriques
+# répresentation graphique des données
+barplot(salmonelles, beside = TRUE, col=rainbow(2))
+
+# Choix du test: Chi2 de comparaison.
+
+## Vérifier effectifs théoriques (règle de Cochran)
 chisq.test(salmonelles,correct=F)$expected
 ## Qu'un seul effectif a un valeur < 5 (+80% ont effectif > 5), alors le règle de Cochran est respecté
 
@@ -316,13 +331,32 @@ chisq.test(salmonelles,correct=F)
 ### L'élan d'Amerique frequente-il indifferemment les differents milieux du parc ?
 
 elanpourcentfrequentation = c(118, 201, 110, 82)
+couvertvegetal = c(0.258, 0.38, 0.258, 0.104)
+
+barplot(elanpourcentfrequentation/sum(elanpourcentfrequentation))
+
+# Choix du test: Chi-squred de conformité 
+
+chisq.test(elanpourcentfrequentation, p=couvertvegetal)
+# p = 0.0001064
+# On rejète l'hypothèse nulle parce que p << 0.05, alors on conclure que les élans d'Amérique ne fréquentent pas indifférement les milieux.
+
+# Condition d'application: Règle de cochran. Il n'y a pas vraiment besoin de vérifier la condition mais pourquoi pas
+all(chisq.test(elanpourcentfrequentation, p=couvertvegetal)$expected > 5)
+
+
+# IMPLEMENTATION ORIGINALE
+elanpourcentfrequentation = c(118, 201, 110, 82)
 couvertvegetal = c(0.258, 0.38, 0.258, 0.104) * 511
 elanmatrix = rbind(elanpourcentfrequentation, couvertvegetal)
 rownames(elanmatrix) = c("Frequente par Elan", "Parc entier")
 colnames(elanmatrix) = c("Peuplements feuillus", "Peuplements mixtes", "Resineux", "Marecages")
 elanmatrix
 
+
 chisq.test(elanmatrix,correct=F)
+#' H0 = dist(elan) == dist(parcentier)
+#' H1 = dist(elan) ≠ dist(parcentier)
 #' p-value = 0.029
 #' On rejete l'hypothèse nulle parce que le p-value < 0.05. On peut alors conclure que il y a une différence significante 
 #' entre la distribution de végétation à Yosemite et celle de la fréquentation d'élan
