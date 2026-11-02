@@ -1,0 +1,501 @@
+---
+title: "TP 3 : regression simple et ANOVA"
+output: html_document
+---
+
+# 1ère partie: Régression
+
+On souhaite etudier la relation entre des parametres morphologiques de fleurs ;
+La mesure est la hauteur en cm (mesure quantitative continue), et le facteur est la taille de l'opercule en cm (facteur quantitatif continu). On va donc pouvoir effectuer une regression simple. Les donnees sont dans COR.csv
+Commencons par representer graphiquement les donnees, avec la fonction `plot()`.
+
+```{r}
+COR <- read.csv("COR.csv", sep = ";", dec = ",")
+plot(x = COR$opercule, y = COR$hauteur, xlab="opercule", ylab="hauteur")
+```
+
+La relation semble bien lineaire, mais les premiers points semblent mal decrits par le modele.Un des exercices proposera une meilleure approche.
+
+On lance l'analyse par regression lineaire simple avec la fonction `lm()` :
+
+```{r}
+reg=lm(hauteur~opercule,data=COR)
+summary(reg)
+# On peut aussi obtenir l'analyse par table ANOVA (mais le modele reste une regression)
+anova(reg)
+```
+
+Les coefficients sont significatifs ; l'intercept donne la hauteur theorique pour un opercule de 0.
+R2 = 0,669 : 66.9% des variations de la hauteur sont rendues compte par la regression avec l'opercule (R2 = coefficient de determination)
+Le modele est globalement significatif (test F, p < 2.2e-16)
+L'equation est hauteur = 1.54*opercule + 4.12 + epsilon 
+ou hauteur_predit = 1.54*opercule + 4.12
+
+# Ajoutons la droite au graphique :
+
+```{r}
+plot(x = COR$opercule, y = COR$hauteur, xlab="opercule", ylab="hauteur")
+abline(reg, col="red")
+```
+
+*FACULTATIF : ggplot2*
+
+```{r}
+library(ggplot2)
+ggplot(COR, aes(x = opercule, y = hauteur)) +
+  geom_point(shape = 1, size = 3, color = "black") +
+  geom_smooth(method = "lm", se = FALSE, color = "red", linewidth = 0.5) +
+  labs(
+    x = "Opercule (cm)",
+    y = "Hauteur (cm)"
+  ) +
+  theme_classic() +
+  theme(
+    panel.grid = element_blank()
+  )
+
+# autre option : utiliser geom_abline(intercept = coef(reg)[1], slope = coef(reg)[2], color = "red", linewidth = 0.5)
+# a la place de geom_smooth
+```
+
+On peut recuperer les coefficients, les valeurs predites et les residus :
+
+```{r}
+reg$coefficients
+reg$fitted.values[1:10]
+reg$residuals[1:10]
+```
+
+Pour finir l'analyse de la regression, on affiche les graphiques diagnostiques
+
+```{r}
+par(mfrow=c(2,2))
+plot(reg)
+```
+
+Comme prevu, les premiers points sont mal decrits par le modele. Voir exercice 3 pour une meilleure approche.
+
+*FACULTATIF : les graphiques diagnostiques façon ggplot*
+
+```{r}
+library(broom)
+# Graphiques diagnostiques façon ggplot2
+autoplot(reg)
+autoplot(reg, colour = "blue", shape = 1, size = 2, label.size = 3) +
+  theme_classic()
+```
+## Regression à deux facteurs
+
+On cherche a savoir si les rejets en CO2 (mesure quantitative continue) dependent de la puissance (facteur quantitatif continu) et des emissions d'oxyde d'azote (NOx) de la voiture (facteur quantitatif continu).
+Notez qu'on ne peut pas regarder les emissions de CO2 en fonction de la consommation et de la puissance, car ces facteurs ne sont pas independants.
+
+```{r}
+# Importez les donnees Voiture2.csv
+Voiture2 <- read.csv("Voiture2.csv", sep=";", dec=",")
+head(voitures)
+```
+
+La regression a deux facteurs se conduit egalement avec la fonction `lm()`, et les deux facteurs sont separes par * (cela prend en compte leur interaction).
+
+```{r}
+reg1 = lm(co2 ~ Puissance * nox, data=Voiture2)
+anova(reg1)
+```
+
+L'interaction n'est pas significative, voyons le modele sans cette interaction
+
+```{r}
+reg2 = lm(co2 ~ Puissance + nox, data=Voiture2)
+anova(reg2)
+summary(reg2)
+```
+
+# Comparons les deux modeles :
+
+```{r}
+anova(reg1,reg2)
+```
+Pas de difference significative, on garde donc le modele le plus simple
+
+Les coefficients sont significatifs :
+les emissions de CO2 dependent de la puissance et des emissions de NOx ; elles diminuent avec les emissions de NOx (pente < 0), mais augmentent avec la puissance (pente > 0)
+l'intercept indique la valeur theorique d'emission de CO2 d'une voiture pour une puissance nulle et des emissions de NOx nulles
+Adjusted R2 = 0.5644 : 56,4% des variations des emissions de CO2 sont rendues compte par la regression en fonction de la puissance et des emissions de NOx.
+Le modele est globalement significatif (test F, p < 2.2e-16).
+L'equation s'ecrit : CO2 = 77.48 + 0.56*Puissance -107.35*NOx + epsilon (ou CO2_predit = 77.48 + 0.56*Puissance -107.35*NOx)
+
+Verifions les conditions d'application de la regression (choix du modele sans l'interaction)
+
+```{r}
+par(mfrow=c(2,2))
+plot(reg2)
+```
+
+# 2ème partie: Exercices
+
+## Exercice 1
+
+On cherche a savoir si la vitesse influence le temps de freinage d'une serie de voitures.
+Les donnees sont dans le fichier Voitures.csv
+Vous donnerez l'equation du modele.
+
+```{r}
+Voitures <- read.csv("Voitures.csv", dec=",", sep=";")
+head(Voitures)
+
+# Créer le modèle
+reg <- lm(Distance ~ Vitesse, data=Voitures)
+summary(reg)
+```
+On peut voir que l'intercept et la vitesse sont tous les deux significatifs (p = 0.01 et 1.49e-12). 
+La distance de freinage augment avec la vitesse (coef > 0).
+Le R^2 est 0.65, ainsi 65% de la variance de la distance de freinage est expliquée par régression de la vitesse.
+
+```{r}
+plot(x=Voitures$Vitesse, y = Voitures$Distance, xlab="Vitesse", ylab="Distance de freinage")
+abline(reg, col="red")
+```
+L'équation est donc $d_i = -17.57 + 3.93v_i + \epsilon_i$
+
+Vérification des conditions
+
+```{r}
+par(mfrow=c(2,2))
+plot(reg)
+```
+Les plots vérifient les conditions, bien qu'il y ait certains valeurs élévées sur la côté droite du plot Q-Q.
+
+## EXERCICE 2
+
+Essayons de faire un polynome plutot qu'une droite sur les donnees COR. On pourra s'orienter vers un polynome du second degre de type $y = a_1*X + a_1*X^2 + b$. Pour cela, faire un changement de variables en posant X2=carre de l'opercule, et l'ajouter a la regression.
+*Ne pas prendre leur interaction, ca n'a pas de sens puisqu'en fait il ne s'agit que d'une seule variable !!!*
+Tester quel est le meilleur modele.
+
+Pour ajouter la courbe au graphique, il faut trier les donnees et utiliser la fonction lines
+`lines(sort(x),sort(y))`, y etant les donnees ajustees (fitted values)
+
+```{r}
+# Creer nouvelle variable
+COR$opercule.carre <- COR$opercule**2
+head(COR)
+
+# Créer régression
+reg_carre <- lm(hauteur ~ opercule + opercule.carre, data=COR)
+summary(reg_carre)
+```
+On voit que le coéfficient de l'opercule n'est pas significatif. Si on l'enlève? 
+
+```{r}
+reg_carre_sansa1 <- lm(hauteur ~ opercule.carre, data = COR)
+summary(reg_carre_sansa1)
+
+anova(reg_carre, reg_carre_sansa1)
+```
+
+On peut voir qu'il n'y a pas une différence significative entre les deux modèles, alors on en garde le plus simple (principe de parcimonie).
+
+L'intercept est l'opercule carré sont tous les deux significatifs. La hauteur augment avec l'opercule carré. L'équation est donc $h_i = 7.11 + 0.188o_i^2 + \epsilon_i$.
+
+On vérifie les conditions de l'application
+```{r}
+par(mfrow=c(2, 2))
+plot(reg_carre_sansa1)
+```
+
+```{r}
+plot(x = COR$opercule.carre, y = COR$hauteur)
+lines(sort(COR$opercule.carre),sort(reg_carre_sansa1$fitted.values))
+```
+
+# 3ème partie: L'ANOVA
+
+On souhaite comparer le poids moyen de 3 groupes de plantes soumises a des traitements differents (fichier Plantes.csv).
+*Le traitement a-t-il un effet sur le poids des plantes ?*
+
+```{r}
+Plantes <- read.csv("Plantes.csv", sep=";", dec=",")
+head(Plantes)
+```
+
+*Donnez la mesure et le facteur.*
+
+* Mesure: Poids, Facteur: Group
+
+```{r}
+ggplot(Plantes, aes(x=group, y = poids)) + 
+  geom_point()
+```
+
+Pour comparer les moyennes de ces 3 groupes, on va conduire une ANOVA a 1 facteur.
+*Posez H0 et H1.*
+
+H0: Le group n'a aucun effet significatif sur le poids. 
+H1: Au moins un group a une moyenne qui est significativement différente des autres groupes. 
+
+L'ANOVA peut se realiser avec la fonction aov. On stocke l'analyse dans un objet, pour faire appel ensuite a la fonction summary sur cet objet.
+
+```{r}
+test = aov(poids~group, data=Plantes)
+# Notez l'usage de l'argument data= qui permet de se dispenser d'ecrire Plantes$
+summary(test)
+```
+
+Vous retrouvez tous les elements de la table d'ANOVA vus en cours.
+*Que concluez-vous ?*
+
+Je conclure qu'au moins un groupe a une moyenne qui différe d'une manière significative de la moyenne générale, ainsi il y a un effet significatif du groupe sur le poids d'une plante.
+
+## Tests post-hoc
+
+Cherchons l'origine de la difference observee par un test post-hoc (test a posteriori) : par exemple, le test HSD de Tukey
+
+```{r}
+TukeyHSD(test)
+plot(TukeyHSD(test)) # intervalles de confiance de la difference des moyennes de 2 modalites
+```
+
+les moyennes sont significativement differentes lorsque l'intervalle de confiance n'inclut pas la valeur 0
+*Interpretez les resultats obtenus.*
+
+Ni trt2 ni trt1 diffère significativement du ctrl, mais il y a une différence significative entre trt1 et trt2.
+
+Il existe d'autres test post-hoc, disponibles dans le package DescTools.
+
+```{r}
+library(DescTools)
+```
+
+*Test de Scheffe*
+Un peu moins sensible que le test de Tukey (utilisez plot pour le constater),
+mais plus robuste et preferable quand les effectifs sont tres differents
+
+```{r}
+ScheffeTest(test)
+```
+
+*Test de Dunnett*
+Compare uniquement au groupe controle. A utiliser si c'est ce que vous voulez faire.
+```{r}
+DunnettTest(poids ~ as.factor(group), data=Plantes) 
+# Notez que le test de Dunnett ne peut pas prendre test comme argument ;
+# et notez aussi qu'il est necessaire de faire as.factor sur le groupe
+```
+
+## Verification des conditions d'application
+
+*Normalite des residus*
+
+Normalite des residus par visualisation graphique, QQ-plot (graphe quantiles-quantiles)
+
+```{r}
+plot(test, 2)
+```
+
+Remarque 1 : cette condition d'application est souvent testee directement sur les donnees
+
+*Normalite de la variable "poids" dans chaque groupe :*
+```{r}
+tapply(Plantes$poids, Plantes$group, shapiro.test)
+```
+
+
+*Variances constantes*
+
+Visualisation graphique : Residus vs valeurs predites
+
+```{r}
+plot(test, 1) # il n'y a pas de relation evidente entre les residus et les valeurs predites
+
+autoplot(test, which = c(2,1)) +
+  theme_classic() +
+  theme(panel.grid = element_blank())
+```
+
+Remarque 2 : cette condition d'application est aussi souvent testees directement sur les donnees
+
+*test de l'egalite des variances par un test de Bartlett:*
+
+```{r}
+bartlett.test(poids~group,data=Plantes)
+```
+
+Remarque 3 : Si les residus ne sont pas gaussiens : anova par permutation par la fonction aovp du package lmperm
+
+```{r}
+library(lmPerm)
+
+testp = aovp(poids~group,data=Plantes)
+summary(testp)
+```
+
+si on conduit le test plusieurs fois, la p-value calculee change legerement a chaque fois
+
+Remarque 4 : si l'homogeneite des variances n'est pas verifiee, on peut conduire une ANOVA de Welch avec la fonction oneway.test
+
+```{r}
+oneway.test(poids ~ group, data = Plantes) # l'argument ici par defaut est var.equal=FALSE 
+```
+
+mettre var.equal=TRUE pour retrouver le resultat obtenu plus haut avec aov().
+
+# ANOVA a deux facteurs
+
+Source : site Internet STHDA
+data inclues dans R : ToothGrowth.
+Ce jeu de donnees decrit la croissance des dents de cochons d'Inde, en fonction de differentes doses de vitamine C et de 2 formats d'administration de cette vitamine : jus d'orange ou acide ascorbique
+
+```{r}
+Dents <- ToothGrowth
+summary(Dents)
+```
+
+*Quelle et la mesure et quels sont les facteurs ?*
+
+La mesure est la croissance de dents `len`, quantitative continue. Les facteurs sont la dose de vitamine C, `dose` (quantiative discrète à trois niveaux) et la format `supp`, qualitative nominale à deux niveaux.
+
+Convertir la variable dose en facteur et renommner les niveaux du facteur en "D0.5", "D1", "D2"
+
+```{r}
+Dents$dose <- factor(Dents$dose, levels = c(0.5, 1, 2), labels = c("D0.5", "D1", "D2"))
+```
+
+Verifions si les effectifs sont equilibres
+
+```{r}
+table(Dents$supp,Dents$dose)
+```
+
+Visualisation des donnees
+
+```{r}
+boxplot(len ~ supp*dose, data=Dents,
+        frame=FALSE,
+        col=c("blue","green"),
+        ylab="Tooth Length")
+
+ggplot(Dents, aes(x = interaction(supp, dose), y = len, fill = supp)) +
+  geom_boxplot() +
+  labs(
+    x = "Supplement et Dose",
+    y = "Tooth Length"
+  ) +
+  scale_fill_manual(values = c("blue", "green")) +
+  facet_wrap(~supp) +
+  theme_classic()
+```
+
+
+FACULTATIF : interaction plot
+
+```{r}
+interaction.plot(x.factor = Dents$dose, trace.factor = Dents$supp, 
+                 response = Dents$len, fun = mean, 
+                 type = "b", legend = TRUE, 
+                 xlab = "", trace.label ="",
+                 ylab="Tooth Length",
+                 pch=c(1,19), col = c("blue", "green"))
+```
+
+ANOVA a 2 facteurs sous R : fonction aov, en separant les 2 facteurs par *
+
+```{r}
+res.aov = aov(len ~ supp * dose, data = Dents)
+# res.aov = aov(len ~ supp + dose + supp:dose, data = Dents)
+summary(res.aov)
+```
+
+Remarque : si les deux facteurs ont des effets independamment l'un de l'autre alors ils n'ont pas d'interaction ; remplacer * par + dans aov, et l'interaction des facteurs ne sera pas prise en compte
+
+Verification des conditions d'application : graphiques diagnostiques
+
+```{r}
+#plot(res.aov, 1)
+#plot(res.aov, 2)
+
+autoplot(res.aov, which = c(2,1)) +
+  theme_classic() +
+  theme(panel.grid = element_blank())
+```
+
+On peut aussi tester les conditions d'application directement sur les données
+Creer un facteur correspondant a l'interaction, utile dans ce cas-la pour avoir acces a tous les groupes
+
+```{r}
+SuppDose=interaction(Dents$supp,Dents$dose)
+```
+
+On peut verifier la normalite sur les donnees
+
+```{r}
+tapply(Dents$len,SuppDose,shapiro.test)
+```
+
+Verification des conditions d'application : homogeneite des variances
+
+```{r}
+bartlett.test(Dents$len ~ SuppDose)
+```
+
+# EXERCICE 3
+
+On a place des patelles (mollusque marin) dans differentes dilutions d'eau de mer (donc differentes conditions de salinite) et on a mesure leur consommation en oxygene.
+Les donnees sont dans le fichier Patelles.csv ; y a t-il un effet de la salinite sur la consommation en oxygene ?
+
+```{r}
+# Lire les données
+Patelles <- read.csv("Patelles.csv", sep=";", dec=",")
+# Transformer Dilution en un facteur
+Patelles$Dilution <- as.factor(Patelles$Dilution)
+summary(Patelles)
+```
+La mesure est l'Oxygene, une variable quantitative continue. Le facteur Dilution est une variable qualitative ordinale à trois niveaux.
+
+Les effectifs ne sont pas équitables parmi les trois groupes, il y a deux fois plus d'échantillons chez EauMer100%. 
+Visualisation des données
+
+```{r}
+ggplot(Patelles, aes(x = Dilution, y = Oxygene)) + geom_point()
+```
+
+Pour comparer les moyennes de ces 3 groupes, on va conduire une ANOVA a 1 facteur.
+
+H0: Le niveau de dilution n'a aucun effet significatif sur l'oxygène. 
+H1: Au moins un groupe a une moyenne qui est significativement différente des autres groupes. 
+
+```{r}
+test = aov(Oxygene~Dilution, data=Patelles)
+summary(test)
+```
+Le p-value est significatif, ce qui indique qu'au moins un groupe est significativement différent des autres.
+
+On conduit un test post-hoc. Parce que les effectifs sont différents, on utilise un test de Scheffe
+
+```{r}
+ScheffeTest(test)
+```
+On conduit aussi un test de Dunnett avec EauMer100% comme contrôle
+
+```{r}
+DunnettTest(Oxygene ~ Dilution, data=Patelles) 
+```
+On voit le même résultat, qu'il y a une différence significative entre EauMer50% et EauMer100%.
+
+*Verification des conditions*
+
+Normalite de la variable "poids" dans chaque groupe:
+```{r}
+tapply(Patelles$Oxygene, Patelles$Dilution, shapiro.test)
+```
+
+
+Normalité des résidus et Variances constantes:
+```{r}
+autoplot(test, which = c(2,1)) +
+  theme_classic() +
+  theme(panel.grid = element_blank())
+```
+
+Test de l'egalite des variances par un test de Bartlett:
+```{r}
+bartlett.test(Oxygene~Dilution,data=Patelles)
+```
