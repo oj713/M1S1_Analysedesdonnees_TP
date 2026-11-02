@@ -270,15 +270,22 @@ wilcox.test(ductilite$postChauffage, ductilite$preChauffage, paired=T)
 # correspondant aux 4 categories "gris et lisse", "blanc et lisse", "gris et rude" et "blanc et rude"
 cobaye = c(50,20,22,5)
 
+# Répresentation de données
+barplot(cobaye, names=c("G & L", "B & L", "G & R", "B & R"), ylab = "Effectifs")
+# Par proportion
+barplot(cobaye/sum(cobaye), names=c("G & L", "B & L", "G & R", "B & R"), ylab = "Proportion observée")
+
 # On veut savoir si cela s'écarte significativement ou non des proportions théoriques prévues par la génétique (lois de Mendel)
 # qui sont les suivantes : 9/16 de "gris et lisse", 3/16 de "blanc et lisse", 3/16 de "gris et rude" et 1/16 de "blanc et rude"
 prop = c(9/16,3/16,3/16,1/16)
 
 # Test du chi-deux de conformite sous R :
 chisq.test(x=cobaye,p=prop)
+# p = 0.67, > 0.05, on ne rejete pas H0, càd le test montre qu'on a une conformité entre les observations et les proportions théoriques
 
 # Pour vérifier la règle de Cochran
 chisq.test(x=cobaye,p=prop)$expected
+# Multiplie l'effectif théorique avec l'effectif total
 
 ##########
 ########## Chi2 de comparaison (sur table de contingence, d'independance/d'homogénéité)
@@ -292,6 +299,9 @@ categorie=matrix(c(125, 190,588, 842, 1105, 888, 194, 300, 433, 694, 1227, 1024,
 rownames(categorie)=c("Pas du tout","Tres peu","Un peu","Partiellement","En grande partie","Completement")
 colnames(categorie)=c("Basse","Moyenne","Superieure")
 categorie
+
+barplot(categorie, beside = TRUE, col=rainbow(6), ylab = "Effectifs")
+legend(15, 1000, legend = rownames(categorie), cex = 0.8, col=rainbow(6), pch = 15)
 
 # Conduite du test du Chi2 d'independance dans R, directement sur categorie :
 chisq.test(categorie,correct=F)
@@ -318,7 +328,7 @@ chisq.test(memoire,correct=F)$expected
 # 50% des classes ont des effectifs < 5 ; condition d'application (regle de Cochran) non respectee
 # On conduit alors le test exact de Fisher : 
 fisher.test(memoire)
-
+# On rejete H0. Il y a un effet de performance 
 
 ##########
 ########## Exercices
